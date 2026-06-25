@@ -71,14 +71,14 @@
 
 <div align="center">
 
-| Layer | Technology |
-|:------|:-----------|
-| **Runtime** | Node.js |
-| **Framework** | Express 5 |
-| **Database** | MongoDB + Mongoose |
-| **Auth** | JWT, bcrypt, cookie-parser |
-| **Email** | Nodemailer (Gmail OAuth2) |
-| **Dev Tools** | Nodemon, dotenv |
+| Layer         | Technology                 |
+| :------------ | :------------------------- |
+| **Runtime**   | Node.js                    |
+| **Framework** | Express 5                  |
+| **Database**  | MongoDB + Mongoose         |
+| **Auth**      | JWT, bcrypt, cookie-parser |
+| **Email**     | Nodemailer (Gmail OAuth2)  |
+| **Dev Tools** | Nodemon, dotenv            |
 
 </div>
 
@@ -125,7 +125,7 @@ Banking_system/
 <h3>1. Clone & Install</h3>
 
 ```bash
-git clone https://github.com/your-username/Banking_system.git
+git clone https://github.com/ashuulape/Banking_system.git
 cd Banking_system
 npm install
 ```
