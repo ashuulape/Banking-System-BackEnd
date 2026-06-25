@@ -56,5 +56,35 @@ async function sendRegistrationEmail(userEmail,name) {
 await sendEmail(to,subject,text,html)
 }
 
+
+async function sendTransactionEmail(userEmail, name, transactionDetails) {
+    const to = userEmail;
+    const subject = "Transaction Notification from Test_Backend";
+    const text = `Hello ${name},\n\nYour recent transaction was processed:\n${transactionDetails}\n\nThank you for using Test_Backend.`;
+    const html = `<p>Hello <b>${name}</b>,</p>
+                  <p>Your recent transaction was processed:</p>
+                  <pre>${transactionDetails}</pre>
+                  <p>Thank you for using <b>Test_Backend</b>.</p>`;
+
+    await sendEmail(to, subject, text, html);
+}
+
+async function sendFailedTransactionEmail(userEmail, name, transactionDetails, failureReason) {
+    const to = userEmail;
+    const subject = "Transaction Failed - Test_Backend";
+    const text = `Hello ${name},\n\nUnfortunately, your recent transaction could not be processed.\nDetails: ${transactionDetails}\nReason: ${failureReason}\n\nPlease try again or contact support if you need assistance.\n\nThank you for using Test_Backend.`;
+    const html = `<p>Hello <b>${name}</b>,</p>
+                  <p><b>Unfortunately, your recent transaction could not be processed.</b></p>
+                  <p>Details:</p>
+                  <pre>${transactionDetails}</pre>
+                  <p>Reason: <b>${failureReason}</b></p>
+                  <p>Please try again or contact support if you need assistance.</p>
+                  <p>Thank you for using <b>Test_Backend</b>.</p>`;
+
+    await sendEmail(to, subject, text, html);
+}
+
+
+
 // Fix: Export only the sendEmail function as default, matching expected usage in app.js
-module.exports = {sendRegistrationEmail};
+module.exports = {sendRegistrationEmail ,sendTransactionEmail ,sendFailedTransactionEmail};

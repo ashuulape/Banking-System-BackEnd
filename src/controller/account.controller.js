@@ -14,6 +14,16 @@ const createAccountController = async (req, res) => {
     })
 };
 
+const getAllAccountsController = async (req, res) => {
+    try {
+        const accounts = await accountModel.find();
+        res.status(200).json({ accounts });
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching accounts", error: error.message });
+    }
+};
 
 
-module.exports = {createAccountController};
+
+
+module.exports = {createAccountController,getAllAccountsController};

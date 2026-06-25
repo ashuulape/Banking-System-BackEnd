@@ -10,8 +10,8 @@
 </p>
 
 <p>
-  <strong>A secure REST API for user authentication and bank account management.</strong><br/>
-  Built with Express, MongoDB, JWT cookies, and automated welcome emails.
+  <strong>A secure REST API for user authentication, bank accounts, and ledger-based transactions.</strong><br/>
+  Built with Express, MongoDB, JWT cookies, double-entry ledger entries, and automated welcome emails.
 </p>
 
 <img src="https://img.shields.io/badge/Status-Active-success?style=flat-square" alt="Status"/>
@@ -55,9 +55,28 @@
       </ul>
     </td>
     <td width="50%" valign="top">
+      <h3>💸 Transactions & Ledger</h3>
+      <ul>
+        <li>Double-entry ledger (DEBIT / CREDIT) with immutable entries</li>
+        <li>Transaction statuses: <code>PENDING</code>, <code>COMPLETED</code>, <code>FAILED</code>, <code>REVERSED</code></li>
+        <li>Idempotency keys to prevent duplicate transfers</li>
+        <li>MongoDB sessions for atomic fund operations</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>👤 System Users</h3>
+      <ul>
+        <li>Privileged <code>systemUser</code> flag on user accounts</li>
+        <li>Dedicated middleware for system-only endpoints</li>
+        <li>Initial fund injection into customer accounts</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
       <h3>🛡️ Security</h3>
       <ul>
-        <li>Passwords excluded from default queries</li>
+        <li>Passwords and system flags excluded from default queries</li>
         <li>Token verification on protected endpoints</li>
         <li>Environment-based secrets with dotenv</li>
       </ul>
@@ -94,16 +113,20 @@ Banking_system/
 │   ├── DataBase/
 │   │   └── db.js             # MongoDB connection
 │   ├── Models/
-│   │   ├── user.model.js     # User schema
-│   │   └── account.model.js  # Account schema
+│   │   ├── user.model.js         # User schema
+│   │   ├── account.model.js      # Account schema
+│   │   ├── transaction.model.js  # Transaction schema
+│   │   └── ledger.model.js       # Immutable ledger entries
 │   ├── controller/
 │   │   ├── auth.controller.js
-│   │   └── account.controller.js
+│   │   ├── account.controller.js
+│   │   └── transaction.controller.js
 │   ├── middleware/
-│   │   └── auth.middleware.js
+│   │   └── auth.middleware.js    # JWT + system-user guards
 │   ├── routes/
 │   │   ├── auth.routes.js
-│   │   └── account.routes.js
+│   │   ├── account.routes.js
+│   │   └── transaction.router.js
 │   └── services/
 │       └── email.services.js
 ├── .env                      # Environment variables (not committed)
@@ -210,8 +233,41 @@ npm run dev
       <td>✅</td>
       <td>Create a new bank account for the logged-in user</td>
     </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/accounts</code></td>
+      <td>✅</td>
+      <td>List all bank accounts</td>
+    </tr>
   </tbody>
 </table>
+
+<div align="center">
+
+<h3>Transactions — <code>/api/transaction</code></h3>
+
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th align="left">Method</th>
+      <th align="left">Endpoint</th>
+      <th align="left">Auth</th>
+      <th align="left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/transaction/system/initial-funds</code></td>
+      <td>🔑 System user</td>
+      <td>Credit initial funds to a customer account (creates transaction + ledger entries)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><em>System-user endpoints require a JWT for a user with <code>systemUser: true</code>.</em></p>
 
 ---
 
@@ -249,6 +305,26 @@ curl -X POST http://localhost:3000/api/accounts \
   -b cookies.txt
 ```
 
+<h4>List Accounts</h4>
+
+```bash
+curl -X GET http://localhost:3000/api/accounts \
+  -b cookies.txt
+```
+
+<h4>Initial Funds (system user only)</h4>
+
+```bash
+curl -X POST http://localhost:3000/api/transaction/system/initial-funds \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "toAccount": "64a1b2c3d4e5f6789012345",
+    "amount": 1000,
+    "idempotencyKey": "init-funds-001"
+  }'
+```
+
 <p><em>Alternatively, pass the token via header:</em> <code>Authorization: Bearer &lt;token&gt;</code></p>
 
 ---
@@ -260,7 +336,8 @@ curl -X POST http://localhost:3000/api/accounts \
 <table>
   <tr><td><strong>email</strong></td><td>Unique, validated email address</td></tr>
   <tr><td><strong>username</strong></td><td>3–30 characters</td></tr>
-  <tr><td><strong>password</strong></td><td>Min 6 chars, bcrypt hashed</td></tr>
+  <tr><td><strong>password</strong></td><td>Min 6 chars, bcrypt hashed (hidden by default)</td></tr>
+  <tr><td><strong>systemUser</strong></td><td>Boolean, default <code>false</code> — grants access to system-only endpoints (hidden by default)</td></tr>
 </table>
 
 <h4>Account</h4>
@@ -270,6 +347,27 @@ curl -X POST http://localhost:3000/api/accounts \
   <tr><td><strong>status</strong></td><td><code>ACTIVE</code> | <code>FROZEN</code> | <code>CLOSED</code></td></tr>
   <tr><td><strong>currency</strong></td><td>Default: <code>INR</code></td></tr>
 </table>
+
+<h4>Transaction</h4>
+
+<table>
+  <tr><td><strong>fromAccount</strong></td><td>Source account (ObjectId ref)</td></tr>
+  <tr><td><strong>toAccount</strong></td><td>Destination account (ObjectId ref)</td></tr>
+  <tr><td><strong>amount</strong></td><td>Positive number</td></tr>
+  <tr><td><strong>status</strong></td><td><code>PENDING</code> | <code>COMPLETED</code> | <code>FAILED</code> | <code>REVERSED</code></td></tr>
+  <tr><td><strong>idempotencyKey</strong></td><td>Unique string to prevent duplicate processing</td></tr>
+</table>
+
+<h4>Ledger</h4>
+
+<table>
+  <tr><td><strong>account</strong></td><td>Reference to Account (ObjectId, immutable)</td></tr>
+  <tr><td><strong>transaction</strong></td><td>Reference to Transaction (ObjectId, immutable)</td></tr>
+  <tr><td><strong>amount</strong></td><td>Entry amount (immutable)</td></tr>
+  <tr><td><strong>type</strong></td><td><code>DEBIT</code> | <code>CREDIT</code> (immutable)</td></tr>
+</table>
+
+<p><em>Ledger entries cannot be modified or deleted after creation.</em></p>
 
 ---
 
@@ -283,8 +381,9 @@ curl -X POST http://localhost:3000/api/accounts \
 
 <ol>
   <li>User registers or logs in → server signs a JWT and sets it as a cookie</li>
-  <li>Protected routes read the token from cookies or <code>Authorization</code> header</li>
-  <li>Middleware verifies the token and attaches <code>req.user</code> for downstream handlers</li>
+  <li>Protected routes read the token from cookies or <code>Authorization: Bearer</code> header</li>
+  <li><code>authMiddelware</code> verifies the token and attaches <code>req.user</code> for downstream handlers</li>
+  <li><code>authSystemUserMiddleware</code> additionally checks <code>systemUser</code> for privileged operations (e.g. initial fund injection)</li>
 </ol>
 
 ---
