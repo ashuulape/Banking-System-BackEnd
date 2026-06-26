@@ -6,7 +6,7 @@ const transactionController=require('../controller/transaction.controller')
 
 const transactionRoutes=Router()
 
-transactionRoutes.post("/",middelWare.authMiddelware)
+transactionRoutes.post("/",middelWare.authMiddelware,transactionController.createTransaction)
 
 
 transactionRoutes.post('/system/initial-funds',middelWare.authSystemUserMiddleware ,transactionController.initalfundsTransaction)

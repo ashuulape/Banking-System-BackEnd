@@ -4,6 +4,8 @@ const ledgerModel=require('../Models/ledger.model')
 const emailService=require('../services/email.services')
 const accountModel=require('../Models/account.model')
 
+
+
 const createTransaction=async(req,res)=>{
 
     const{fromAccount,toAccount,amount,idempotencyKey}=req.body
@@ -11,6 +13,7 @@ const createTransaction=async(req,res)=>{
     if(!fromAccount||!toAccount||!amount||!idempotencyKey){
         return res.status(400).json({message:'All feilds are required'})
     }
+
 
 const fromUserAccount=await  accountModel.findOne({
     _id:fromAccount
@@ -24,32 +27,30 @@ if(!fromUserAccount||!toUserAccount){
     return res.status(400).json({message:'User not found'})
 }
 
-const isTransanctinAlredyExist=await transactionModel.find({
-    idempotencyKey:idempotencyKeys
+const isTransanctinAlredyExist=await transactionModel.findOne({
+    idempotencyKey:idempotencyKey
 })
 
-switch (isTransanctinAlredyExist.status) {
-    case "COMPLETED":
-         res.status(200).json({
-            message: "transaction already completed",
-            transaction: isTransanctinAlredyExist
-        });
-        break;
-    case "PENDING":
-        res.status(200).json({
-            message: "transaction is still processing",
-        });
-        break;
-    case "FAILED":
-        res.status(500).json({
-            message: "transaction is failed ,retry again",
-        });
-        break;
-    case "REVERSED":
-        res.status(500).json({
-            message: "transaction was reversed ,retry again",
-        });
-        break;
+if(isTransanctinAlredyExist){
+    switch (isTransanctinAlredyExist.status) {
+        case "COMPLETED":
+            return res.status(200).json({
+                message: "transaction already completed",
+                transaction: isTransanctinAlredyExist
+            });
+        case "PENDING":
+            return res.status(200).json({
+                message: "transaction is still processing",
+            });
+        case "FAILED":
+            return res.status(500).json({
+                message: "transaction is failed ,retry again",
+            });
+        case "REVERSED":
+            return res.status(500).json({
+                message: "transaction was reversed ,retry again",
+            });
+    }
 }
 
 if(fromUserAccount.status !=="ACTIVE" ||toUserAccount.status !== "ACTIVE"){
@@ -57,9 +58,60 @@ if(fromUserAccount.status !=="ACTIVE" ||toUserAccount.status !== "ACTIVE"){
         message:"one of them account is not active check again "
     })
 }
-    
 
-  
+const balance = await fromUserAccount.getBalance()
+
+if(balance<amount){
+    return res.status(400).json({
+        message:`Insufficient Balence in . your balence is ${balance}`
+    })
+}
+
+
+
+let transaction;
+try {
+    const session =await mongoose.startSession()
+    session.startTransaction()
+
+     transaction=await transactionModel.create([{
+        fromAccount,
+        toAccount,
+        amount,
+        idempotencyKey,
+        status:"PENDING"
+    }],{session})
+
+    await ledgerModel.create([{
+        account:fromAccount,
+        amount:amount,
+        transaction:transaction._id,
+        type:'DEBIT'
+    }],{session})
+
+    await ledgerModel.create([{
+        account:toAccount,
+        amount:amount,
+        transaction:transaction._id,
+        type:'CREDIT',
+    }],{session})
+
+    transaction.status="COMPLETED"
+    await transaction.save({session})
+
+    await session.commitTransaction()
+
+    emailService.sendTransactionEmail(req.user.email ,req.user.username ,toUserAccount)
+
+    return res.status(201).json({
+        message:"transaction sucessfully"
+    })
+} catch (err) {
+    await session.abortTransaction()
+    return res.status(500).json({ message: err.message })
+} finally {
+    session.endSession()
+}
 }
 
 const initalfundsTransaction=async (req,res)=>{
