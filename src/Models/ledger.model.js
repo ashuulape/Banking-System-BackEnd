@@ -16,7 +16,7 @@ const ledgerSchema=new mongoose.Schema({
     },
     transaction:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:'transaction',
+        ref:'Transaction',
         required:[true,'ledger must conatin with transaction'],
         index:true,
         immutable:true
@@ -26,7 +26,7 @@ const ledgerSchema=new mongoose.Schema({
         enum:{
             values:['DEBIT','CREDIT'],
             message:'ledger type must be DEBIT or CREDIT'},
-        require:[true,'ledger type is required'],
+        required:[true,'ledger type is required'],
         index:true,
         immutable:true
     }

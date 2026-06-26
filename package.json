@@ -20,5 +20,9 @@
     "mongoose": "^9.7.0",
     "nodemailer": "^9.0.1",
     "nodemon": "^3.1.14"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "typescript-cached-transpile": "^0.0.6"
   }
 }

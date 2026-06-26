@@ -21,10 +21,10 @@ const authMiddelware = async (req, res, next) => {
        
                 
      const user = await UserModel.findById(decoded.userId)
- console.log(user);
+ 
      req.user=user
 
-     return next()
+      next()
 
     ;
   } catch (err) {
@@ -51,7 +51,7 @@ const authSystemUserMiddleware=async (req,res,next)=>{
 
      req.user=user
      next()
-
+    
     ;
   } catch (err) {
     return res.status(401).json({ message: 'Invalid or expired token' });
