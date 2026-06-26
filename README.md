@@ -11,7 +11,7 @@
 
 <p>
   <strong>A secure REST API for user authentication, bank accounts, and ledger-based transactions.</strong><br/>
-  Built with Express, MongoDB, JWT cookies, double-entry ledger entries, and automated welcome emails.
+  Built with Express 5, MongoDB, JWT cookies, double-entry ledger entries, and automated email notifications.
 </p>
 
 <img src="https://img.shields.io/badge/Status-Active-success?style=flat-square" alt="Status"/>
@@ -50,17 +50,19 @@
       <h3>📧 Email Notifications</h3>
       <ul>
         <li>Welcome email on successful registration</li>
+        <li>Transaction confirmation emails</li>
         <li>Gmail OAuth2 via Nodemailer</li>
         <li>HTML + plain-text email templates</li>
       </ul>
     </td>
     <td width="50%" valign="top">
-      <h3>💸 Transactions & Ledger</h3>
+      <h3>💸 Transactions &amp; Ledger</h3>
       <ul>
         <li>Double-entry ledger (DEBIT / CREDIT) with immutable entries</li>
         <li>Transaction statuses: <code>PENDING</code>, <code>COMPLETED</code>, <code>FAILED</code>, <code>REVERSED</code></li>
         <li>Idempotency keys to prevent duplicate transfers</li>
         <li>MongoDB sessions for atomic fund operations</li>
+        <li>Ledger-derived balance calculation (aggregation pipeline)</li>
       </ul>
     </td>
   </tr>
@@ -78,6 +80,7 @@
       <ul>
         <li>Passwords and system flags excluded from default queries</li>
         <li>Token verification on protected endpoints</li>
+        <li>Supports cookie and <code>Authorization: Bearer</code> token</li>
         <li>Environment-based secrets with dotenv</li>
       </ul>
     </td>
@@ -90,14 +93,14 @@
 
 <div align="center">
 
-| Layer         | Technology                 |
-| :------------ | :------------------------- |
-| **Runtime**   | Node.js                    |
-| **Framework** | Express 5                  |
-| **Database**  | MongoDB + Mongoose         |
-| **Auth**      | JWT, bcrypt, cookie-parser |
-| **Email**     | Nodemailer (Gmail OAuth2)  |
-| **Dev Tools** | Nodemon, dotenv            |
+| Layer         | Technology                    |
+| :------------ | :---------------------------- |
+| **Runtime**   | Node.js v18+                  |
+| **Framework** | Express 5                     |
+| **Database**  | MongoDB + Mongoose v9         |
+| **Auth**      | JWT, bcrypt, cookie-parser    |
+| **Email**     | Nodemailer (Gmail OAuth2)     |
+| **Dev Tools** | Nodemon, dotenv               |
 
 </div>
 
@@ -114,7 +117,7 @@ Banking_system/
 │   │   └── db.js             # MongoDB connection
 │   ├── Models/
 │   │   ├── user.model.js         # User schema
-│   │   ├── account.model.js      # Account schema
+│   │   ├── account.model.js      # Account schema + getBalance()
 │   │   ├── transaction.model.js  # Transaction schema
 │   │   └── ledger.model.js       # Immutable ledger entries
 │   ├── controller/
@@ -122,7 +125,7 @@ Banking_system/
 │   │   ├── account.controller.js
 │   │   └── transaction.controller.js
 │   ├── middleware/
-│   │   └── auth.middleware.js    # JWT + system-user guards
+│   │   └── auth.middleware.js    # JWT guard + system-user guard
 │   ├── routes/
 │   │   ├── auth.routes.js
 │   │   ├── account.routes.js
@@ -145,11 +148,11 @@ Banking_system/
   <li><strong>Gmail OAuth2</strong> credentials for email (optional)</li>
 </ul>
 
-<h3>1. Clone & Install</h3>
+<h3>1. Clone &amp; Install</h3>
 
 ```bash
-git clone https://github.com/ashuulape/Banking_system.git
-cd Banking_system
+git clone https://github.com/ashuulape/Banking-System-BackEnd.git
+cd Banking-System-BackEnd
 npm install
 ```
 
@@ -200,7 +203,7 @@ npm run dev
       <td><code>POST</code></td>
       <td><code>/api/auth/register</code></td>
       <td>❌</td>
-      <td>Register a new user</td>
+      <td>Register a new user (sends welcome email)</td>
     </tr>
     <tr>
       <td><code>POST</code></td>
@@ -230,13 +233,13 @@ npm run dev
     <tr>
       <td><code>POST</code></td>
       <td><code>/api/accounts</code></td>
-      <td>✅</td>
+      <td>✅ User</td>
       <td>Create a new bank account for the logged-in user</td>
     </tr>
     <tr>
       <td><code>GET</code></td>
       <td><code>/api/accounts</code></td>
-      <td>✅</td>
+      <td>✅ User</td>
       <td>List all bank accounts</td>
     </tr>
   </tbody>
@@ -260,9 +263,21 @@ npm run dev
   <tbody>
     <tr>
       <td><code>POST</code></td>
+      <td><code>/api/transaction/send</code></td>
+      <td>✅ User</td>
+      <td>Transfer funds between two accounts with double-entry ledger</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/transaction/checkbalance</code></td>
+      <td>❌</td>
+      <td>Get ledger-derived balance for a given account</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
       <td><code>/api/transaction/system/initial-funds</code></td>
-      <td>🔑 System user</td>
-      <td>Credit initial funds to a customer account (creates transaction + ledger entries)</td>
+      <td>🔑 System User</td>
+      <td>Credit initial funds to a customer account (creates transaction + ledger entry)</td>
     </tr>
   </tbody>
 </table>
@@ -312,6 +327,30 @@ curl -X GET http://localhost:3000/api/accounts \
   -b cookies.txt
 ```
 
+<h4>Send Funds (user to user)</h4>
+
+```bash
+curl -X POST http://localhost:3000/api/transaction/send \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "fromAccount": "64a1b2c3d4e5f6789012340",
+    "toAccount":   "64a1b2c3d4e5f6789012345",
+    "amount": 500,
+    "idempotencyKey": "txn-send-001"
+  }'
+```
+
+<h4>Check Balance</h4>
+
+```bash
+curl -X POST http://localhost:3000/api/transaction/checkbalance \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "64a1b2c3d4e5f6789012345"
+  }'
+```
+
 <h4>Initial Funds (system user only)</h4>
 
 ```bash
@@ -344,8 +383,9 @@ curl -X POST http://localhost:3000/api/transaction/system/initial-funds \
 
 <table>
   <tr><td><strong>user</strong></td><td>Reference to User (ObjectId)</td></tr>
-  <tr><td><strong>status</strong></td><td><code>ACTIVE</code> | <code>FROZEN</code> | <code>CLOSED</code></td></tr>
+  <tr><td><strong>status</strong></td><td><code>ACTIVE</code> | <code>FROZEN</code> | <code>CLOSED</code> (default: <code>ACTIVE</code>)</td></tr>
   <tr><td><strong>currency</strong></td><td>Default: <code>INR</code></td></tr>
+  <tr><td><strong>getBalance()</strong></td><td>Instance method — aggregates ledger entries (CREDIT − DEBIT)</td></tr>
 </table>
 
 <h4>Transaction</h4>
@@ -383,7 +423,7 @@ curl -X POST http://localhost:3000/api/transaction/system/initial-funds \
   <li>User registers or logs in → server signs a JWT and sets it as a cookie</li>
   <li>Protected routes read the token from cookies or <code>Authorization: Bearer</code> header</li>
   <li><code>authMiddelware</code> verifies the token and attaches <code>req.user</code> for downstream handlers</li>
-  <li><code>authSystemUserMiddleware</code> additionally checks <code>systemUser</code> for privileged operations (e.g. initial fund injection)</li>
+  <li><code>authSystemUserMiddleware</code> additionally checks <code>systemUser: true</code> for privileged operations (e.g. initial fund injection)</li>
 </ol>
 
 ---
@@ -402,7 +442,7 @@ curl -X POST http://localhost:3000/api/transaction/system/initial-funds \
 <div align="center">
 
 <p>
-  <sub>Built with ❤️ using Node.js & Express</sub>
+  <sub>Built with ❤️ using Node.js &amp; Express</sub>
 </p>
 
 <p>
