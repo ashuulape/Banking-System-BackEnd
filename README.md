@@ -11,10 +11,10 @@
 
 <p>
   <strong>A secure REST API for user authentication, bank accounts, and ledger-based transactions.</strong><br/>
-  Built with Express 5, MongoDB, JWT cookies, double-entry ledger entries, and automated email notifications.
+  Built with Express 5, MongoDB, JWT cookies, token blacklisting, double-entry ledger entries, and automated email notifications.
 </p>
 
-<img src="https://img.shields.io/badge/Status-Active-success?style=flat-square" alt="Status"/>
+<img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square" alt="Status"/>
 <img src="https://img.shields.io/badge/License-ISC-blue?style=flat-square" alt="License"/>
 <img src="https://img.shields.io/badge/Port-3000-orange?style=flat-square" alt="Port"/>
 
@@ -32,6 +32,7 @@
         <li>User registration with email validation</li>
         <li>Secure login with bcrypt password hashing</li>
         <li>JWT tokens stored in HTTP-only cookies</li>
+        <li>Secure logout with token blacklisting</li>
         <li>Protected routes via auth middleware</li>
       </ul>
     </td>
@@ -68,11 +69,12 @@
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <h3>👤 System Users</h3>
+      <h3>🚫 Token Blacklisting</h3>
       <ul>
-        <li>Privileged <code>systemUser</code> flag on user accounts</li>
-        <li>Dedicated middleware for system-only endpoints</li>
-        <li>Initial fund injection into customer accounts</li>
+        <li>Blacklist model stores invalidated JWT tokens</li>
+        <li>Tokens auto-expire after 3 days (TTL index)</li>
+        <li>All protected routes check against the blacklist</li>
+        <li>Prevents reuse of tokens after logout</li>
       </ul>
     </td>
     <td width="50%" valign="top">
@@ -82,6 +84,7 @@
         <li>Token verification on protected endpoints</li>
         <li>Supports cookie and <code>Authorization: Bearer</code> token</li>
         <li>Environment-based secrets with dotenv</li>
+        <li>Privileged <code>systemUser</code> flag for admin operations</li>
       </ul>
     </td>
   </tr>
@@ -119,13 +122,14 @@ Banking_system/
 │   │   ├── user.model.js         # User schema
 │   │   ├── account.model.js      # Account schema + getBalance()
 │   │   ├── transaction.model.js  # Transaction schema
-│   │   └── ledger.model.js       # Immutable ledger entries
+│   │   ├── ledger.model.js       # Immutable ledger entries
+│   │   └── blacklist.model.js    # Blacklisted JWT tokens (TTL: 3 days)
 │   ├── controller/
-│   │   ├── auth.controller.js
+│   │   ├── auth.controller.js        # register, login, logout
 │   │   ├── account.controller.js
 │   │   └── transaction.controller.js
 │   ├── middleware/
-│   │   └── auth.middleware.js    # JWT guard + system-user guard
+│   │   └── auth.middleware.js    # JWT guard + blacklist check + system-user guard
 │   ├── routes/
 │   │   ├── auth.routes.js
 │   │   ├── account.routes.js
@@ -211,6 +215,12 @@ npm run dev
       <td>❌</td>
       <td>Login and receive JWT cookie</td>
     </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/auth/logout</code></td>
+      <td>✅ User</td>
+      <td>Logout — blacklists the JWT token and clears cookie</td>
+    </tr>
   </tbody>
 </table>
 
@@ -268,9 +278,9 @@ npm run dev
       <td>Transfer funds between two accounts with double-entry ledger</td>
     </tr>
     <tr>
-      <td><code>POST</code></td>
+      <td><code>GET</code></td>
       <td><code>/api/transaction/checkbalance</code></td>
-      <td>❌</td>
+      <td>✅ User</td>
       <td>Get ledger-derived balance for a given account</td>
     </tr>
     <tr>
@@ -312,6 +322,13 @@ curl -X POST http://localhost:3000/api/auth/login \
   -c cookies.txt
 ```
 
+<h4>Logout</h4>
+
+```bash
+curl -X POST http://localhost:3000/api/auth/logout \
+  -b cookies.txt
+```
+
 <h4>Create Account</h4>
 
 ```bash
@@ -344,8 +361,9 @@ curl -X POST http://localhost:3000/api/transaction/send \
 <h4>Check Balance</h4>
 
 ```bash
-curl -X POST http://localhost:3000/api/transaction/checkbalance \
+curl -X GET http://localhost:3000/api/transaction/checkbalance \
   -H "Content-Type: application/json" \
+  -b cookies.txt \
   -d '{
     "accountId": "64a1b2c3d4e5f6789012345"
   }'
@@ -409,6 +427,15 @@ curl -X POST http://localhost:3000/api/transaction/system/initial-funds \
 
 <p><em>Ledger entries cannot be modified or deleted after creation.</em></p>
 
+<h4>Blacklist</h4>
+
+<table>
+  <tr><td><strong>token</strong></td><td>Invalidated JWT string (unique)</td></tr>
+  <tr><td><strong>createdAt</strong></td><td>Timestamp of blacklisting (immutable)</td></tr>
+</table>
+
+<p><em>Blacklisted tokens are automatically removed after <strong>3 days</strong> via a MongoDB TTL index.</em></p>
+
 ---
 
 ## 🔒 Authentication Flow
@@ -417,13 +444,16 @@ curl -X POST http://localhost:3000/api/transaction/system/initial-funds \
   <img src="https://img.shields.io/badge/Register-→-JWT_Cookie-4CAF50?style=for-the-badge" alt="Register"/>
   <img src="https://img.shields.io/badge/Login-→-JWT_Cookie-2196F3?style=for-the-badge" alt="Login"/>
   <img src="https://img.shields.io/badge/Protected_Route-→-Verify_Token-FF9800?style=for-the-badge" alt="Protected"/>
+  <img src="https://img.shields.io/badge/Logout-→-Blacklist_Token-f44336?style=for-the-badge" alt="Logout"/>
 </p>
 
 <ol>
   <li>User registers or logs in → server signs a JWT and sets it as a cookie</li>
   <li>Protected routes read the token from cookies or <code>Authorization: Bearer</code> header</li>
+  <li><code>authMiddelware</code> checks the blacklist first — if the token was logged out, it is rejected</li>
   <li><code>authMiddelware</code> verifies the token and attaches <code>req.user</code> for downstream handlers</li>
-  <li><code>authSystemUserMiddleware</code> additionally checks <code>systemUser: true</code> for privileged operations (e.g. initial fund injection)</li>
+  <li><code>authSystemUserMiddleware</code> additionally checks <code>systemUser: true</code> for privileged operations</li>
+  <li>On logout, the token is stored in the <code>Blacklist</code> collection and the cookie is cleared</li>
 </ol>
 
 ---
@@ -442,7 +472,7 @@ curl -X POST http://localhost:3000/api/transaction/system/initial-funds \
 <div align="center">
 
 <p>
-  <sub>Built with ❤️ using Node.js &amp; Express</sub>
+  <sub>Built with ❤️ using Node.js &amp; Express — Project Completed ✅</sub>
 </p>
 
 <p>
