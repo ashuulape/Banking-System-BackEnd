@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const UserModel=require('../Models/user.model')
+const blacklistModel = require('../Models/blacklist.model.js')
 
 /**
  * JWT authentication middleware.
@@ -16,7 +17,15 @@ const authMiddelware = async (req, res, next) => {
     return res.status(401).json({ message: 'Authentication token missing' });
   }
 
+   const isTokenBlacklisted= await blacklistModel.findOne({token})
+    
+    if(isTokenBlacklisted){
+      return res.status(401).json({message:'Token is blacklisted , Login again'})
+    }
+
+
   try {
+
     const decoded = jwt.verify(token, process.env.JWT_TOKEN);
        
                 
@@ -26,7 +35,7 @@ const authMiddelware = async (req, res, next) => {
 
       next()
 
-    ;
+    
   } catch (err) {
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
@@ -39,6 +48,12 @@ const authSystemUserMiddleware=async (req,res,next)=>{
   if (!token) {
     return res.status(401).json({ message: 'Authentication token missing' });
   }
+  
+   const isTokenBlacklisted= await blacklistModel.findOne({token})
+    
+    if(isTokenBlacklisted){
+      return res.status(401).json({message:'Token is blacklisted , Login again'})
+    }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_TOKEN);

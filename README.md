@@ -93,14 +93,14 @@
 
 <div align="center">
 
-| Layer         | Technology                    |
-| :------------ | :---------------------------- |
-| **Runtime**   | Node.js v18+                  |
-| **Framework** | Express 5                     |
-| **Database**  | MongoDB + Mongoose v9         |
-| **Auth**      | JWT, bcrypt, cookie-parser    |
-| **Email**     | Nodemailer (Gmail OAuth2)     |
-| **Dev Tools** | Nodemon, dotenv               |
+| Layer         | Technology                 |
+| :------------ | :------------------------- |
+| **Runtime**   | Node.js v18+               |
+| **Framework** | Express 5                  |
+| **Database**  | MongoDB + Mongoose v9      |
+| **Auth**      | JWT, bcrypt, cookie-parser |
+| **Email**     | Nodemailer (Gmail OAuth2)  |
+| **Dev Tools** | Nodemon, dotenv            |
 
 </div>
 

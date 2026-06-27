@@ -8,7 +8,7 @@ const transactionRoutes=Router()
 
 transactionRoutes.post("/send",middelWare.authMiddelware,transactionController.createTransaction)
 
-transactionRoutes.post("/checkbalance",transactionController.checkUserBalance)
+transactionRoutes.get("/checkbalance",middelWare.authMiddelware,transactionController.checkUserBalance)
 
 
 

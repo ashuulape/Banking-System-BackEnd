@@ -13,14 +13,7 @@ const transactionSchema = new mongoose.Schema({
         required: [true, 'Transaction must have a destination account'],
         index:true
     },
-    status: {
-        type: String,
-        enum: {
-            values: ['PENDING', 'COMPLETED', 'FAILED', 'REVERSED'],
-            message: 'Status must be PENDING, COMPLETED, FAILED, or REVERSED'
-        },
-        default: 'PENDING'
-    },
+   
     amount: {
         type: Number,
         required: [true, 'Transaction amount is required'],
@@ -32,13 +25,21 @@ const transactionSchema = new mongoose.Schema({
         index:true,
         unique:true
         
-    }
+    },
+     status: {
+        type: String,
+        enum: {
+            values: ['PENDING', 'COMPLETED', 'FAILED', 'REVERSED'],
+            message: 'Status must be PENDING, COMPLETED, FAILED, or REVERSED'
+        },
+        default: 'PENDING'
+    },
     
     
 }, {
     timestamps: true
 });
 
-const TransactionModel = mongoose.model('transaction', transactionSchema);
+const transactionModel = mongoose.model('transaction', transactionSchema);
 
-module.exports = TransactionModel;
+module.exports = transactionModel;

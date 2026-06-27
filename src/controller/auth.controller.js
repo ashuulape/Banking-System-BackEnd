@@ -2,6 +2,7 @@ const User = require('../Models/user.model.js');
 const bcrypt = require('bcrypt');
 const JWT = require('jsonwebtoken');
 const emailSerivce = require('../services/email.services.js');
+const blacklistModel = require('../Models/blacklist.model.js')
 
 // Register Controller
 const register = async (req, res) => {
@@ -68,4 +69,25 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login };
+const logout= async(req,res)=>{
+
+  const token=req.cookies.token||req.headers.authorization?.split(' ')[1];
+
+  if(!token){
+    return res.status(401).json({message:"Already logout login first"})
+  }
+
+   
+     await blacklistModel.create({token:token})
+      res.clearCookie('token')
+  
+
+     res.status(200).json({
+      message:'LogOut Sucessfully'
+     })
+
+    
+  
+}
+
+module.exports = { register, login ,logout};

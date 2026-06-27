@@ -69,6 +69,22 @@ async function sendTransactionEmail(userEmail, name, transactionDetails) {
     await sendEmail(to, subject, text, html);
 }
 
+// Email notification for receiver of transaction
+async function sendTransactionReceiverEmail(receiverEmail, receiverName, transactionDetails) {
+    const to = receiverEmail;
+    const subject = "You Have Received a Transaction - Test_Backend";
+    const text = `Hello ${receiverName},\n\nYou have received a new transaction:\n${transactionDetails}\n\nThank you for using Test_Backend.`;
+    const html = `<p>Hello <b>${receiverName}</b>,</p>
+                  <p>You have received a new transaction:</p>
+                  <pre>${transactionDetails}</pre>
+                  <p>Thank you for using <b>Test_Backend</b>.</p>`;
+
+    await sendEmail(to, subject, text, html);
+}
+
+
+
+
 async function sendFailedTransactionEmail(userEmail, name, transactionDetails, failureReason) {
     const to = userEmail;
     const subject = "Transaction Failed - Test_Backend";
@@ -87,4 +103,4 @@ async function sendFailedTransactionEmail(userEmail, name, transactionDetails, f
 
 
 // Fix: Export only the sendEmail function as default, matching expected usage in app.js
-module.exports = {sendRegistrationEmail ,sendTransactionEmail ,sendFailedTransactionEmail};
+module.exports = {sendRegistrationEmail ,sendTransactionEmail ,sendFailedTransactionEmail,sendTransactionReceiverEmail};
